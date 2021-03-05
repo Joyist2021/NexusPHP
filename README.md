@@ -17,8 +17,7 @@ proc_open
 
 以下必须在 /www/wwwroot/192.168.1.118 下ssh执行：
 
-git clone https://github.com/xiaomlove/nexusphp.git  克隆
-mv -R  /www/wwwroot/192.168.1.118/nexusphp   /www/wwwroot/192.168.1.118  移动到根目录
+git clone https://github.com/xiaomlove/nexusphp.git ./  克隆到根目录
 
 composer install，安装依赖
 
