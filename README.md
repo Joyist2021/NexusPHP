@@ -20,8 +20,11 @@ proc_open
 _git clone https://github.com/xiaomlove/nexusphp.git ./ 克隆_     *开发版代码 内容提交会出错,不建议使用*
 
 *推荐发布版代码*
+
 wget https://github.com/xiaomlove/nexusphp/archive/v1.6.0-beta3.zip
+
 unzip v1.6.0-beta3.zip  解压缩,
+
 mv -R  nexusphp-1.6.0-beta3   /www/wwwroot/192.168.1.118  移动到根目录
 
 
