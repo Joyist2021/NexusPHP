@@ -17,7 +17,7 @@ proc_open
 
 以下必须在 /www/wwwroot/192.168.1.118 下ssh执行：
 
-_git clone https://github.com/xiaomlove/nexusphp.git ./ 克隆_     *开发版代码 内容提交会出错,不建议使用*
+_git clone -b v1.6.0-beta3  https://github.com/xiaomlove/nexusphp.git ./  克隆v1.6.0-beta3移动到根目录_     **开发版代码 内容提交会出错,不建议使用**
 
 *推荐发布版代码*
 
