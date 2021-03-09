@@ -1,250 +1,154 @@
 <?php
-require "../include/bittorrent.php";
+require_once("../include/bittorrent.php");
 dbconn();
 require_once(get_langfile_path());
-loggedinorreturn();
-if (get_user_class() < $staffmem_class)
-	permissiondenied();
-
-$action = $_GET["action"] ?? '';
-
-///////////////////////////
-//        SHOW PM'S        //
-/////////////////////////
-
-if (!$action) {
-	stdhead($lang_staffbox['head_staff_pm']);
-	$url = $_SERVER['PHP_SELF']."?";
-	$count = get_row_count("staffmessages");
-	$perpage = 20;
-	list($pagertop, $pagerbottom, $limit) = pager($perpage, $count, $url);
-	print ("<h1 align=center>".$lang_staffbox['text_staff_pm']."</h1>");
-	if ($count == 0)
+if (isset($_GET['del']))
+{
+	if (is_valid_id($_GET['del']))
 	{
-		stdmsg($lang_staffbox['std_sorry'], $lang_staffbox['std_no_messages_yet']);
+		if((get_user_class() >= $sbmanage_class))
+		{
+			sql_query("DELETE FROM shoutbox WHERE id=".mysql_real_escape_string($_GET['del']));
+		}
 	}
-	else 
-	{
-		begin_main_frame();
-		print("<form method=post action=\"?action=takecontactanswered\">");
-		print("<table width=940 border=1 cellspacing=0 cellpadding=5 align=center>\n");
-		print("<tr>
-			<td class=colhead align=left>".$lang_staffbox['col_subject']."</td>
-			<td class=colhead align=center>".$lang_staffbox['col_sender']."</td>
-			<td class=colhead align=center><nobr>".$lang_staffbox['col_added']."</nobr></td>
-			<td class=colhead align=center>".$lang_staffbox['col_answered']."</td>
-			<td class=colhead align=center><nobr>".$lang_staffbox['col_action']."</nobr></td>
-		</tr>");
-
-	$res = sql_query("SELECT staffmessages.id, staffmessages.added, staffmessages.subject, staffmessages.answered, staffmessages.answeredby, staffmessages.sender, staffmessages.answer FROM staffmessages ORDER BY id desc $limit");
-
-	while ($arr = mysql_fetch_assoc($res))
-	{
-    		if ($arr[answered])
-    		{
-       			$answered = "<nobr><font color=green>".$lang_staffbox['text_yes']."</font> - " . get_username($arr['answeredby']) . "</nobr>";
-    		}
-   		else
-			$answered = "<font color=red>".$lang_staffbox['text_no']."</font>";
-
-    		$pmid = $arr["id"];
-		print("<tr><td width=100% class=rowfollow align=left><a href=staffbox.php?action=viewpm&pmid=$pmid>".htmlspecialchars($arr[subject])."</td><td class=rowfollow align=center>" . get_username($arr['sender']) . "</td><td class=rowfollow align=center><nobr>".gettime($arr[added], true, false)."</nobr></td><td class=rowfollow align=center>$answered</td><td class=rowfollow align=center><input type=\"checkbox\" name=\"setanswered[]\" value=\"" . $arr[id] . "\" /></td></tr>\n");
-	}
-	print("<tr><td class=rowfollow align=right colspan=5><input type=\"submit\" name=\"setdealt\" value=\"".$lang_staffbox['submit_set_answered']."\" /><input type=\"submit\" name=\"delete\" value=\"".$lang_staffbox['submit_delete']."\" /></td></tr>");
-	print("</table>\n");
-	print("</form>");
-	echo $pagerbottom;
-	end_main_frame();
-	}
-	stdfoot();
 }
-
-         //////////////////////////
-        //        VIEW PM'S        //
-       //////////////////////////
-
-if ($action == "viewpm")
+$where=$_GET["type"] ?? '';
+$refresh = ($CURUSER['sbrefresh'] ? $CURUSER['sbrefresh'] : 120)
+?>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="Refresh" content="<?php echo $refresh?>; url=<?php echo get_protocol_prefix() . $BASEURL?>/shoutbox.php?type=<?php echo htmlspecialchars($where)?>">
+<link rel="stylesheet" href="<?php echo get_font_css_uri()?>" type="text/css">
+<link rel="stylesheet" href="<?php echo get_css_uri()."theme.css"?>" type="text/css">
+<link rel="stylesheet" href="styles/curtain_imageresizer.css" type="text/css">
+<script src="curtain_imageresizer.js" type="text/javascript"></script><style type="text/css">body {overflow-y:scroll; overflow-x: hidden}</style>
+<?php
+print(get_style_addicode());
+$startcountdown = "startcountdown(".$CURUSER['sbrefresh'].")";
+?>
+<script type="text/javascript">
+//<![CDATA[
+var t;
+function startcountdown(time)
 {
-	if (get_user_class() < $staffmem_class)
-		permissiondenied();
-
-$pmid = intval($_GET["pmid"] ?? 0);
-
-$ress4 = sql_query("SELECT * FROM staffmessages WHERE id=".sqlesc($pmid));
-$arr4 = mysql_fetch_assoc($ress4);
-
-$answeredby = get_username($arr4["answeredby"]);
-
-if (is_valid_id($arr4["sender"]))
+parent.document.getElementById('countdown').innerHTML=time;
+time=time-1;
+t=setTimeout("startcountdown("+time+")",1000);
+}
+function countdown(time)
 {
-$sender = get_username($arr4["sender"]);
+	if (time <= 0){
+	parent.document.getElementById("hbtext").disabled=false;
+	parent.document.getElementById("hbsubmit").disabled=false;
+	parent.document.getElementById("hbsubmit").value=parent.document.getElementById("sbword").innerHTML;
+	}
+	else {
+	parent.document.getElementById("hbsubmit").value=time;
+	time=time-1;
+	setTimeout("countdown("+time+")", 1000); 
+	}
+}
+function hbquota(){
+parent.document.getElementById("hbtext").disabled=true;
+parent.document.getElementById("hbsubmit").disabled=true;
+var time=10;
+countdown(time);
+//]]>
+}
+</script>
+</head>
+<body class='inframe' <?php if (isset($_GET["type"]) && $_GET["type"] != "helpbox"){?> onload="<?php echo $startcountdown?>" <?php } else {?> onload="hbquota()" <?php } ?>>
+<?php
+if(isset($_GET["sent"]) && $_GET["sent"]=="yes"){
+if(!isset($_GET["shbox_text"]) || !$_GET['shbox_text'])
+{
+	$userid=intval($CURUSER["id"] ?? 0);
 }
 else
-$sender = $lang_staffbox['text_system'];
-
-$subject = htmlspecialchars($arr4["subject"]);
-if ($arr4["answered"] == 1){
-$colspan = "3";
-$width = "33";
-}
-else{
-$colspan = "2";
-$width = "50";
-}
-stdhead($lang_staffbox['head_view_staff_pm']);
-print("<h1 align=\"center\"><a class=\"faqlink\" href=\"staffbox.php\">".$lang_staffbox['text_staff_pm']."</a>-->".$subject."</h1>");
-print("<table width=\"737\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">");
-print("<tr><td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_from']."</td>");
-if ($arr4["answered"] == 1)
-print("<td width=\"34%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_answered_by']."</td>");
-print("<td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_date']."</td></tr>");
-print("<tr><td class=\"rowfollow\" align=\"left\">".$sender."</td>");
-if ($arr4["answered"] == 1)
-print("<td class=\"rowfollow\" align=\"left\">".$answeredby."</td>");
-print("<td class=\"rowfollow\" align=\"left\">".gettime($arr4["added"])."</td></tr>");
-print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["msg"])."</td></tr>");
-if ($arr4["answered"] == 1 && $arr4["answer"])
 {
-print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["answer"])."</td></tr>");
+	if($_GET["type"]=="helpbox")
+	{
+		if ($showhelpbox_main != 'yes'){
+			write_log("Someone is hacking shoutbox. - IP : ".getip(),'mod');
+			die($lang_shoutbox['text_helpbox_disabled']);
+		}
+		$userid=0;
+		$type='hb';
+	}
+	elseif ($_GET["type"] == 'shoutbox')
+	{
+		$userid=intval($CURUSER["id"] ?? 0);
+		if (!$userid){
+			write_log("Someone is hacking shoutbox. - IP : ".getip(),'mod');
+			die($lang_shoutbox['text_no_permission_to_shoutbox']);
+		}
+		if (!empty($_GET["toguest"]))
+			$type ='hb';
+		else $type = 'sb';
+	}
+	$date=sqlesc(time());
+	$text=trim($_GET["shbox_text"]);
+//logout fix
+if (stripos(htmlspecialchars($text), "logout.php")>0 )
+	{
+	$ip = getip();
+	$text ='我是IP为：'.$ip.'的渣渣，想入侵被发现了！I was trying to hack in and were catched by System.';
+	write_log("Someone is hacking shoutbox with logout.php.ID is ".$CURUSER[id].".Name is ".$CURUSER[username].".IP was banned - IP : ".getip(),'mod');
+	$firstlong_ban = ip2long(getip());
+	$lastlong_ban = ip2long(getip());
+	$comment_ban = sqlesc("Hacking with logout.php in shoutbox.ID is ".$CURUSER[id].".Name is ".$CURUSER[username]);
+	$added_ban = sqlesc(date("Y-m-d H:i:s"));
+	sql_query("INSERT INTO bans (added, addedby, first, last, comment) VALUES($added_ban, 0, $firstlong_ban, $lastlong_ban, $comment_ban)") or sqlerr(__FILE__, __LINE__);
+	}
+//	sql_query("INSERT INTO shoutbox (userid, date, text, type) VALUES (" . sqlesc($userid) . ", $date, " . sqlesc($text) . ", ".sqlesc($type).")") or sqlerr(__FILE__, __LINE__);
+$getip=getip(); //logout fix
+	sql_query("INSERT INTO shoutbox (userid, date, text, type) VALUES (" . sqlesc($userid) . ", $date, " . sqlesc($text) . ", ".sqlesc($type).")") or sqlerr(__FILE__, __LINE__);
+	print "<script type=\"text/javascript\">parent.document.forms['shbox'].shbox_text.value='';</script>";
 }
-print("<tr><td colspan=\"".$colspan."\" align=\"right\">");
-print("<font color=white>");
-if ($arr4["answered"] == 0)
-print("[ <a href=\"staffbox.php?action=answermessage&receiver=" . $arr4['sender'] . "&answeringto=".$arr4['id']."\">".$lang_staffbox['text_reply']."</a> ] [ <a href=\"staffbox.php?action=setanswered&id=".$arr4['id']."\">".$lang_staffbox['text_mark_answered']."</a> ] ");
-print("[ <a href=\"staffbox.php?action=deletestaffmessage&id=" . $arr4["id"] . "\">".$lang_staffbox['text_delete']."</a> ]");
-print("</font>");
-print("</td></tr>");
-print("</table>");
-stdfoot();
-}
-         //////////////////////////
-        //        ANSWER MESSAGE        //
-       //////////////////////////
-
-if ($action == "answermessage") {
-	if (get_user_class() < $staffmem_class)
-		permissiondenied();
-
-        $answeringto = $_GET["answeringto"];
-        $receiver = intval($_GET["receiver"] ?? 0);
-
-        int_check($receiver,true);
-
-        $res = sql_query("SELECT * FROM users WHERE id=" . sqlesc($receiver)) or die(mysql_error());
-        $user = mysql_fetch_assoc($res);
-
-        if (!$user)
-   		stderr($lang_staffbox['std_error'], $lang_staffbox['std_no_user_id']);
-
-        $res2 = sql_query("SELECT * FROM staffmessages WHERE id=" . sqlesc($answeringto)) or die(mysql_error());
-        $staffmsg = mysql_fetch_assoc($res2);
-	stdhead($lang_staffbox['head_answer_to_staff_pm']);
-	begin_main_frame();
-        ?>
-	<form method="post" id="compose" name="message" action="?action=takeanswer">
-<?php if ($_GET["returnto"] || $_SERVER["HTTP_REFERER"]) { ?>
-        <input type=hidden name=returnto value="<?php echo htmlspecialchars($_GET["returnto"]) ? htmlspecialchars($_GET["returnto"]) : htmlspecialchars($_SERVER["HTTP_REFERER"])?>">
-<?php } ?>
-        <input type=hidden name=receiver value=<?php echo $receiver?>>
-        <input type=hidden name=answeringto value=<?php echo $answeringto?>>
-<?php
-	$title = $lang_staffbox['text_answering_to']."<a href=\"staffbox.php?action=viewpm&pmid=".$staffmsg['id']."\">".htmlspecialchars($staffmsg['subject'])."</a>".$lang_staffbox['text_sent_by'].get_username($staffmsg['sender']);
-	begin_compose($title, "reply", "", false);
-	end_compose();
-	print("</form>");
-	end_main_frame();
-	stdfoot();
 }
 
-         //////////////////////////
-        //        TAKE ANSWER        //
-       //////////////////////////
-if ($action == "takeanswer") {
-  if ($_SERVER["REQUEST_METHOD"] != "POST")
-    die();
-
-    if (get_user_class() < $staffmem_class)
-   permissiondenied();
-
-     $receiver = intval($_POST["receiver"] ?? 0);
-   $answeringto = $_POST["answeringto"];
-
-   int_check($receiver,true);
-
-          $userid = $CURUSER["id"];
-
-   			$msg = trim($_POST["body"]);
-
-          $message = sqlesc($msg);
-
-          $added = "'" . date("Y-m-d H:i:s") . "'";
-
-   if (!$msg)
-     stderr($lang_staffbox['std_error'], $lang_staffbox['std_body_is_empty']);
-
-sql_query("INSERT INTO messages (sender, receiver, added, msg) VALUES($userid, $receiver, $added, $message)") or sqlerr(__FILE__, __LINE__);
-
-sql_query("UPDATE staffmessages SET answer=$message, answered='1', answeredby='$userid' WHERE id=$answeringto") or sqlerr(__FILE__, __LINE__);
-$Cache->delete_value('staff_new_message_count');
-        header("Location: staffbox.php?action=viewpm&pmid=$answeringto");
-        die;
+$limit = ($CURUSER['sbnum'] ? $CURUSER['sbnum'] : 70); 
+if ($where == "helpbox")
+{
+$sql = "SELECT * FROM shoutbox WHERE type='hb' ORDER BY date DESC LIMIT ".$limit;
 }
-         //////////////////////////
-        // DELETE STAFF MESSAGE        //
-       //////////////////////////
-
-if ($action == "deletestaffmessage") {
-
-   $id = intval($_GET["id"] ?? 0);
-
-    if (!is_numeric($id) || $id < 1 || floor($id) != $id)
-    die;
-
-          if (get_user_class() < $staffmem_class)
-          permissiondenied();
-
-    sql_query("DELETE FROM staffmessages WHERE id=" . sqlesc($id)) or die();
-$Cache->delete_value('staff_message_count');
-$Cache->delete_value('staff_new_message_count');
-  header("Location: " . get_protocol_prefix() . "$BASEURL/staffbox.php");
+elseif ($CURUSER['hidehb'] == 'yes' || $showhelpbox_main != 'yes'){
+$sql = "SELECT * FROM shoutbox WHERE type='sb' ORDER BY date DESC LIMIT ".$limit;
 }
-
-         //////////////////////////
-        // MARK AS ANSWERED        //
-       //////////////////////////
-
-if ($action == "setanswered") {
-
- if (get_user_class() < $staffmem_class)
-    permissiondenied();
-
-$id = intval($_GET["id"] ?? 0);
-
-sql_query ("UPDATE staffmessages SET answered=1, answeredby = $CURUSER[id] WHERE id = $id") or sqlerr();
-$Cache->delete_value('staff_new_message_count');
-header("Refresh: 0; url=staffbox.php?action=viewpm&pmid=$id");
+elseif ($CURUSER){
+$sql = "SELECT * FROM shoutbox ORDER BY date DESC LIMIT ".$limit;
 }
+else {
+die("<h1>".$lang_shoutbox['std_access_denied']."</h1>"."<p>".$lang_shoutbox['std_access_denied_note']."</p></body></html>");
+}
+$res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+if (mysql_num_rows($res) == 0)
+print("\n");
+else
+{
+	print("<table border='0' cellspacing='0' cellpadding='2' width='100%' align='left'>\n");
 
-         //////////////////////////
-        // MARK AS ANSWERED #2        //
-       //////////////////////////
-
-if ($action == "takecontactanswered") {
-	if (get_user_class() < $staffmem_class)
-		permissiondenied();
-
-if ($_POST['setdealt']){
-	$res = sql_query ("SELECT id FROM staffmessages WHERE answered=0 AND id IN (" . implode(", ", $_POST[setanswered]) . ")");
 	while ($arr = mysql_fetch_assoc($res))
-		sql_query ("UPDATE staffmessages SET answered=1, answeredby = $CURUSER[id] WHERE id = $arr[id]") or sqlerr();
+	{
+        $del = '';
+		if (get_user_class() >= $sbmanage_class) {
+			$del .= "[<a href=\"shoutbox.php?del=".$arr['id']."\">".$lang_shoutbox['text_del']."</a>]";
+		}
+		if ($arr["userid"]) {
+			$username = get_username($arr["userid"],false,true,true,true,false,false,"",true);
+			if (isset($arr["type"]) && isset($_GET['type']) && $_GET["type"] != 'helpbox' && $arr["type"] == 'hb')
+				$username .= $lang_shoutbox['text_to_guest'];
+			}
+		else $username = $lang_shoutbox['text_guest'];
+		if ($CURUSER['timetype'] != 'timealive')
+			$time = strftime("%m.%d %H:%M",$arr["date"]);
+		else $time = get_elapsed_time($arr["date"]).$lang_shoutbox['text_ago'];
+		print("<tr><td class=\"shoutrow\"><span class='date'>[".$time."]</span> ".
+$del ." ". $username." " . format_comment($arr["text"],true,false,true,true,600,true,false)."
+</td></tr>\n");
+	}
+	print("</table>");
 }
-elseif ($_POST['delete']){
-	$res = sql_query ("SELECT id FROM staffmessages WHERE id IN (" . implode(", ", $_POST[setanswered]) . ")");
-	while ($arr = mysql_fetch_assoc($res))
-		sql_query ("DELETE FROM staffmessages WHERE id = $arr[id]") or sqlerr();
-}
-$Cache->delete_value('staff_new_message_count');
-header("Refresh: 0; url=staffbox.php");
-}
-
 ?>
+</body>
+</html>
